@@ -25,7 +25,7 @@ let staticMemory = {
     TICK_THROTTLE_PER_PLAYER: 1, 
 
     SJP: {
-        active: true,
+        active: false,
         njt: 0,
     },
 
@@ -238,7 +238,7 @@ this.options = {
     ships: Object.values(SHIPS["vanilla"]).flatMap(a => a.code),
     map_name: "",
     max_players: staticMemory.MAX_PLAYER_COUNT,
-    starting_ship: 801,
+    starting_ship: 609,
     map_size: 100,
     speed_mod: 1.2,
     max_level: 1,

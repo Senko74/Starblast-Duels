@@ -1,17 +1,21 @@
 const WebSockets = require("ws")
 const { Tracker } = require("./tracker.js")
 const { BrowserClient} = require("starblast-modding")
+const { fightingBot } = require("./fightingBot.js")
+const { parsePacket0, parsePacket101, parsePacket150 } = require("./utils.js")
 const path = require("path")
 
 class Room
 {
-    constructor(players, ecpKey, onData)
+    constructor(players, ecpKey, duelAgainstBot, onData)
     {
         this.spawningShipIdx = 0
         this.trackers = []
         this.players = players
         this.ecpKey = ecpKey
         this.onData = onData
+        this.duelAgainstBot = duelAgainstBot
+        this.fightBot
         this.game
         this.gameId
         this.link
@@ -59,33 +63,50 @@ class Room
                     link : this.link
                 })
                 )
-                this.players[this.spawningShipIdx+1].socket.send(JSON.stringify(
+                if(this.fightBot === false)
                 {
-                    name : "wait_other_one"
-                })
-                )
+                    this.players[this.spawningShipIdx+1].socket.send(JSON.stringify(
+                    {
+                        name : "wait_other_one"
+                    })
+                    )
+                }
                 resolve()
             })
 
             this.game.on("shipSpawn", (ship) =>
             {
-                if(this.spawningShipIdx >= this.players.length)
+                if(this.duelAgainstBot === true)
                 {
-                    return
-                }
-                this.players[this.spawningShipIdx].playerGameInfo.shipId = ship.id
-                this.spawningShipIdx += 1
-                if(this.spawningShipIdx < this.players.length)
-                {
-                    this.players[this.spawningShipIdx].socket.send(JSON.stringify(
+                    this.players[this.spawningShipIdx].playerGameInfo.shipId = ship.id
+                    if(!this.fightBot)
                     {
-                        name : "room_created",
-                        data : this.gameId,
-                        link : this.link
-                    })
-                    )
-                    
+                        this.fightBot = new fightingBot(this.link, this.players[0].playerGameInfo.shipId) 
+                        this.fightBot.start()
+                    }
+
                 }
+                else
+                {
+                    if(this.spawningShipIdx >= this.players.length)
+                    {
+                        return
+                    }
+                    this.players[this.spawningShipIdx].playerGameInfo.shipId = ship.id
+                    this.spawningShipIdx += 1
+                    if(this.spawningShipIdx < this.players.length)
+                    {
+                        this.players[this.spawningShipIdx].socket.send(JSON.stringify(
+                        {
+                            name : "room_created",
+                            data : this.gameId,
+                            link : this.link
+                        })
+                        )
+                        
+                    }
+                }
+
 
             })
 
@@ -118,7 +139,7 @@ class Room
             const array = Array.from(msg)
             if(array[0] === 0)
             {
-                const data = this.parsePacket0(array)
+                const data = parsePacket0(array)
                 this.writeData(data)
                 if(!this.sendDataInterval)
                 {
@@ -130,12 +151,12 @@ class Room
             }
             else if(array[0] === 101)
             {
-                const data = this.parsePacket101(array)
+                const data = parsePacket101(array)
                 this.writeData(data)
             }
             else if(array[0] === 150)
             {
-                const data = this.parsePacket150(array)
+                const data = parsePacket150(array)
                 this.writeData(data)
             }
         })
@@ -244,68 +265,6 @@ class Room
         
     }
 
-    parsePacket0(bytes)
-    {
-        const buffer = Uint8Array.from(bytes)
-        const view = new DataView(buffer.buffer)
-
-        const playerInfo = 
-        {
-            packetType : 0,
-            shipId : view.getUint8(1),
-            flags: view.getUint8(2),
-            hue: view.getUint8(3),
-            serverTick: view.getUint32(4, true),
-            lastTick: view.getUint32(8, true),
-            angle: view.getUint16(12, true),
-            typeFlags: view.getUint16(14, true),
-            x: view.getFloat32(16, true),
-            y: view.getFloat32(20, true),
-            speedX: view.getFloat32(24, true),
-            speedY: view.getFloat32(28, true),
-            rotation: view.getFloat32(32, true),
-            angularVelocity: view.getFloat32(36, true),
-            stun: view.getUint8(40),
-            rank: view.getUint8(41),
-            shield: view.getUint16(42, true),
-            energy: view.getUint16(44, true),
-            crystals: view.getUint16(46, true),
-            score: view.getUint32(48, true),
-            levels: view.getUint32(52, true)
-        }
-            
-        return playerInfo
-    }
-
-    parsePacket101(bytes)
-    {
-        const buffer = Uint8Array.from(bytes)
-        const view = new DataView(buffer.buffer)
-
-        const laserHit =
-        {
-            packetType : 101,
-            type: view.getUint8(0),
-            laserIndex: view.getUint16(2, true),
-            x: view.getFloat32(4, true),
-            y: view.getFloat32(8, true),
-            shipId: view.getUint8(12)
-        }
-
-        return laserHit
-    }
-
-    parsePacket150(bytes)
-    {
-        const killData = 
-        {
-            packetType : 150,
-            killed : bytes[1],
-            killer : bytes[2]
-        }
-        return killData
-    }
-
     stopRoom()
     {
         if(this.sendDataInterval)
@@ -325,6 +284,7 @@ class Room
 
     stopMod()
     {
+        console.log("stop mod")
         this.onData(
             {
                 name : "stop_mod", 

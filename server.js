@@ -185,11 +185,12 @@ function enoughPlayers(socket)
 {
     if(waitingList.length >= 2)
     {
-        startNewRoom()
+        startNewRoom(false)
     }
     else
     {
-        sendWaitForPlayers(socket)
+        console.log("start room")
+        startNewRoom(true)
     }
 }
 
@@ -217,16 +218,27 @@ function choosePlayersForRoom()
     return roomPlayers
 }
 
-async function startNewRoom()
+async function startNewRoom(againstBot)
 {
-    let roomPlayers = choosePlayersForRoom()
+    let roomPlayers = []
+    if(againstBot === false)
+    {
+        choosePlayersForRoom()
+    }
+    else
+    {
+        roomPlayers.push(waitingList[0])
+    }
+    console.log(roomPlayers)
     const ecpKey = findEcpKey(roomPlayers)
+    console.log("aaa")
     if(ecpKey === null)
     { 
         noEcpKey(roomPlayers)
         return
     }
-    const room = new Room(roomPlayers, ecpKey, (msg) =>
+    console.log("bbbb")
+    const room = new Room(roomPlayers, ecpKey, againstBot, (msg) =>
     {
         if(msg.name === "stop_mod")
         {
@@ -252,6 +264,7 @@ function findEcpKey(players)
     {
         if(player.ecpKey !== null)
         {
+            console.log(player.ecpKey)
             return player.ecpKey
         }
     }

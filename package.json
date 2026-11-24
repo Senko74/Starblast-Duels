@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "express": "^5.2.1",
+    "simple-socks": "^3.6.0",
+    "socks-proxy-agent": "^10.1.0",
     "starblast-modding": "^1.4.40-alpha6",
     "ws": "^8.21.1"
   },

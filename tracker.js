@@ -1,5 +1,5 @@
 const WebSockets = require("ws")
-const { getGameFromId } = require("./findGame.js")
+const { getGameFromId } = require("./utils.js")
 
 class Tracker
 {
